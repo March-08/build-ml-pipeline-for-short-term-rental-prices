@@ -7,6 +7,8 @@ import wandb
 import hydra
 from omegaconf import DictConfig
 
+import logging
+
 _steps = [
     "download",
     "basic_cleaning",
@@ -34,7 +36,6 @@ def go(config: DictConfig):
 
     # Move to a temporary directory
     with tempfile.TemporaryDirectory() as tmp_dir:
-
         if "download" in active_steps:
             # Download file and load in W&B
             _ = mlflow.run(
@@ -49,19 +50,19 @@ def go(config: DictConfig):
                 },
             )
 
-    if "basic_cleaning" in active_steps:
-        _ = mlflow.run(
-            os.path.join(hydra.utils.get_original_cwd(), "src", "basic_cleaning"),
-            "main",
-            parameters={
-                "input_artifact": "sample.csv:latest",
-                "output_artifact": "clean_sample.csv",
-                "output_type": "clean_sample",
-                "output_description": "Data with outliers and null values removed",
-                "min_price": config["etl"]["min_price"],
-                "max_price": config["etl"]["max_price"],
-            },
-        )
+        if "basic_cleaning" in active_steps:
+            _ = mlflow.run(
+                os.path.join(hydra.utils.get_original_cwd(), "src", "basic_cleaning"),
+                "main",
+                parameters={
+                    "input_artifact": "sample.csv:latest",
+                    "output_artifact": "clean_sample.csv",
+                    "output_type": "clean_sample",
+                    "output_description": "Data with outliers and null values removed",
+                    "min_price": config["etl"]["min_price"],
+                    "max_price": config["etl"]["max_price"],
+                },
+            )
 
         if "data_check" in active_steps:
             _ = mlflow.run(
@@ -77,10 +78,16 @@ def go(config: DictConfig):
             )
 
         if "data_split" in active_steps:
-            ##################
-            # Implement here #
-            ##################
-            pass
+            mlflow.run(
+                f"{config['main']['components_repository']}/train_val_test_split",
+                "main",
+                parameters={
+                    "input": config["train_val_test_split"]["input"],
+                    "test_size": config["train_val_test_split"]["test_size"],
+                    "random_seed": config["train_val_test_split"]["random_seed"],
+                    "stratify_by": config["train_val_test_split"]["stratify_by"],
+                },
+            )
 
         if "train_random_forest" in active_steps:
 

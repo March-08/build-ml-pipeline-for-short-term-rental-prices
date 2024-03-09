@@ -15,6 +15,11 @@ data_check:
   ref: "clean_sample.csv:reference"
   min_price: 10 # dollars
   max_price: 350 # dollars
+train_val_test_split:
+  input: "clean_sample.csv:latest"
+  test_size: 0.2
+  random_seed: 42
+  stratify_by: "neighbourhood_group" # dollars
 modeling:
   # Fraction of data to use for test (the remaining will be used for train and validation)
   test_size: 0.2
