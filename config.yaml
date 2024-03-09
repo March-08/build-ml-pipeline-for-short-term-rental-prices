@@ -21,6 +21,7 @@ train_val_test_split:
   random_seed: 42
   stratify_by: "neighbourhood_group" # dollars
 modeling:
+  csv: "clean_sample.csv:latest"
   # Fraction of data to use for test (the remaining will be used for train and validation)
   test_size: 0.2
   # Fraction of remaining data to use for validation
