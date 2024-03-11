@@ -1,7 +1,7 @@
-#!/usr/bin/env python
 """
 This script trains a Random Forest
 """
+
 import argparse
 import logging
 import os
@@ -51,11 +51,7 @@ def go(args):
     # Fix the random seed for the Random Forest, so we get reproducible results
     rf_config["random_state"] = args.random_seed
 
-    ######################################
-    # Use run.use_artifact(...).file() to get the train and validation artifact (args.trainval_artifact)
-    # and save the returned path in train_local_pat
     trainval_local_path = run.use_artifact(args.trainval_artifact).file()
-    ######################################
 
     X = pd.read_csv(trainval_local_path)
     y = X.pop("price")  # this removes the column "price" from X and puts it into y
@@ -76,13 +72,9 @@ def go(args):
         rf_config, args.max_tfidf_features
     )
 
-    # Then fit it to the X_train, y_train data
     logger.info("Fitting")
 
-    ######################################
-    # Fit the pipeline sk_pipe by calling the .fit method on X_train and y_train
     sk_pipe.fit(X_train, y_train)
-    ######################################
 
     # Compute r2 and MAE
     logger.info("Scoring")
@@ -100,19 +92,8 @@ def go(args):
     if os.path.exists("random_forest_dir"):
         shutil.rmtree("random_forest_dir")
 
-    ######################################
-    # Save the sk_pipe pipeline as a mlflow.sklearn model in the directory "random_forest_dir"
-    # HINT: use mlflow.sklearn.save_model
     mlflow.sklearn.save_model(sk_model=sk_pipe, path="random_forest_dir")
-    ######################################
 
-    ######################################
-    # Upload the model we just exported to W&B
-    # HINT: use wandb.Artifact to create an artifact. Use args.output_artifact as artifact name, "model_export" as
-    # type, provide a description and add rf_config as metadata. Then, use the .add_dir method of the artifact instance
-    # you just created to add the "random_forest_dir" directory to the artifact, and finally use
-    # run.log_artifact to log the artifact to the run
-    # YOUR CODE HERE
     artifact = wandb.Artifact(
         name=args.output_artifact,
         type="model_export",
@@ -123,18 +104,11 @@ def go(args):
     artifact.add_dir("random_forest_dir")
     run.log_artifact(artifact)
 
-    ######################################
-
     # Plot feature importance
     fig_feat_imp = plot_feature_importance(sk_pipe, processed_features)
 
-    ######################################
-    # Here we save r_squared under the "r2" key
     run.summary["r2"] = r_squared
-    # Now log the variable "mae" under the key "mae".
-    # YOUR CODE HERE
     run.summary["mae"] = mae
-    ######################################
 
     # Upload to W&B the feture importance visualization
     run.log(
@@ -163,30 +137,19 @@ def plot_feature_importance(pipe, feat_names):
 
 
 def get_inference_pipeline(rf_config, max_tfidf_features):
-    # Let's handle the categorical features first
-    # Ordinal categorical are categorical values for which the order is meaningful, for example
-    # for room type: 'Entire home/apt' > 'Private room' > 'Shared room'
+
     ordinal_categorical = ["room_type"]
     non_ordinal_categorical = ["neighbourhood_group"]
-    # NOTE: we do not need to impute room_type because the type of the room
-    # is mandatory on the websites, so missing values are not possible in production
-    # (nor during training). That is not true for neighbourhood_group
+
     ordinal_categorical_preproc = OrdinalEncoder()
 
-    ######################################
-    # Build a pipeline with two steps:
-    # 1 - A SimpleImputer(strategy="most_frequent") to impute missing values
-    # 2 - A OneHotEncoder() step to encode the variable
     non_ordinal_categorical_preproc = Pipeline(
         steps=[
             ("imputer", SimpleImputer(strategy="most_frequent")),
             ("ohe", OneHotEncoder()),
         ]
-    )  # YOUR CODE HERE
-    ######################################
+    )
 
-    # Let's impute the numerical columns to make sure we can handle missing values
-    # (note that we do not scale because the RF algorithm does not need that)
     zero_imputed = [
         "minimum_nights",
         "number_of_reviews",
@@ -198,10 +161,6 @@ def get_inference_pipeline(rf_config, max_tfidf_features):
     ]
     zero_imputer = SimpleImputer(strategy="constant", fill_value=0)
 
-    # A MINIMAL FEATURE ENGINEERING step:
-    # we create a feature that represents the number of days passed since the last review
-    # First we impute the missing review date with an old date (because there hasn't been
-    # a review for a long time), and then we create a new feature from it,
     date_imputer = make_pipeline(
         SimpleImputer(strategy="constant", fill_value="2010-01-01"),
         FunctionTransformer(delta_date_feature, check_inverse=False, validate=False),
@@ -243,14 +202,9 @@ def get_inference_pipeline(rf_config, max_tfidf_features):
     # Create random forest
     random_Forest = RandomForestRegressor(**rf_config)
 
-    ######################################
-    # Create the inference pipeline. The pipeline must have 2 steps: a step called "preprocessor" applying the
-    # ColumnTransformer instance that we saved in the `preprocessor` variable, and a step called "random_forest"
-    # with the random forest instance that we just saved in the `random_forest` variable.
-    # HINT: Use the explicit Pipeline constructor so you can assign the names to the steps, do not use make_pipeline
     sk_pipe = Pipeline(
         steps=[("preprocessor", preprocessor), ("random_forest", random_Forest)]
-    )  # YOUR CODE HERE
+    )
 
     return sk_pipe, processed_features
 

@@ -1,3 +1,7 @@
+"""
+Performs detirministic and non deterministic data checks
+"""
+
 import pandas as pd
 import numpy as np
 import scipy.stats
@@ -25,8 +29,6 @@ def test_column_names(data):
     ]
 
     these_columns = data.columns.values
-
-    # This also enforces the same order
     assert list(expected_colums) == list(these_columns)
 
 
@@ -36,7 +38,6 @@ def test_neighborhood_names(data):
 
     neigh = set(data["neighbourhood_group"].unique())
 
-    # Unordered check
     assert set(known_names) == set(neigh)
 
 
@@ -62,11 +63,6 @@ def test_similar_neigh_distrib(
     dist2 = ref_data["neighbourhood_group"].value_counts().sort_index()
 
     assert scipy.stats.entropy(dist1, dist2, base=2) < kl_threshold
-
-
-########################################################
-# Implement here test_row_count and test_price_range   #
-########################################################
 
 
 def test_row_count(data):
